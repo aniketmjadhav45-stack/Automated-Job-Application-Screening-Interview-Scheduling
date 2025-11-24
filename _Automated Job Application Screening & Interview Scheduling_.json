@@ -1,0 +1,699 @@
+{
+  "name": "\"Automated Job Application Screening & Interview Scheduling\"",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "Job",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -32,
+        -528
+      ],
+      "id": "2514e475-e7c3-46d0-a3d0-3858ccea4626",
+      "name": "Webhook",
+      "webhookId": "dacf4f05-0021-46b9-a273-0399de919862"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        3008,
+        -624
+      ],
+      "id": "ddcf3b6a-acb8-4efb-a95a-755de35d0bff",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = [\n  {\n    json: {\n      'Name': 'Aniket Jadhav',\n      'Email': 'aniket@gmail.com',\n      'Phone Number': '(876) 256-5658',\n      'Skills': 'n8n, Zapier',\n      'Work Experience': '2',\n      'File upload for resume (PDF, DOCX)': 'https://linktofile.pdf'\n    }\n  }\n];\n\nreturn items.map(item => {\n  const json = item.json;\n  return {\n    json: {\n      name: json['Name'],\n      email: json['Email'],\n      phone: json['Phone Number'],\n      skills: json['Skills']\n        ? json['Skills'].split(',').map(e => e.trim())\n        : [],\n      work_experience: json['Work Experience'],\n      resume_url: json['File upload for resume (PDF, DOCX)']\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        -528
+      ],
+      "id": "b9482b31-1ac5-43c2-8098-f7bd9b1ffc62",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.jotform.com/form/253111726772051/submissions?apiKey=2a46b7648f182d3a4f143e0836993117\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        416,
+        -528
+      ],
+      "id": "ffda9bfb-1968-4e94-afab-c07abd47ae91",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=U are A smart Ai Assistanat IF Sombody Sends a resume link you can anlayize the resume and based on the skills experience you can genarate score score only 10 here resume link : {{ $('HTTP Request').item.json.content[0].answers['7'].answer[0] }}based on this genarete score score must be 1-10 only \n and this is form id : {{ $('HTTP Request').item.json.content[0].form_id }}\n based on this :\n1. genarte score\n2. create description \n i need clean data \nif score comes 8 or above you should send message as approved or if score is below 8 you create message as not aproved\n\n\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        864,
+        -528
+      ],
+      "id": "46a8461a-db75-4cc8-b465-ea821d9fa5fb",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        936,
+        -304
+      ],
+      "id": "42f3d59c-9e55-43fc-adb2-180e2eb7488d",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Qj2qgCOlkplL9oWi",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\n\nreturn items.map(item => {\n  return {\n    json: {\n      resumeLink: item.json.content[0].answers['7'].answer[0]\n    }\n  };\n});\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        -528
+      ],
+      "id": "5113b8ae-9bcf-4d22-85e5-c9ffb6897688",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mock input data for testing in n8n Code node editor\nconst items = [\n  {\n    json: {\n      output: `**Score: 9**\n**Description:**\nThe candidate, Aniket Jadhav, is a promising Computer Engineering student...\n\n**Education:**\nBachelor of Computer Applications, Gulbarga University 2022\n\n**Skills:**\nPython, JavaScript, SQL, Data Analysis, Machine Learning\n\n**Work Experience:**\nMachine Learning Engineer Intern at Ekaagra Technologies`\n    }\n  }\n];\n\nreturn items.map(item => {\n  const text = item.json.output;\n\n  // Extract score as a float\n  const scoreMatch = text.match(/\\*\\*Score:\\s*([\\d\\.]+)\\*\\*/);\n  const score = scoreMatch ? parseFloat(scoreMatch[1]) : null;\n\n  // Extract description after **Description:**\n  const descriptionMatch = text.match(/\\*\\*Description:\\*\\*([\\s\\S]+?)(?=\\*\\*Education:|\\*\\*Skills:|\\*\\*Work Experience:|$)/);\n  const description = descriptionMatch ? descriptionMatch[1].trim() : \"\";\n\n  // Extract education block\n  const educationMatch = text.match(/\\*\\*Education:\\*\\*([\\s\\S]+?)(?=\\*\\*Skills:|\\*\\*Work Experience:|\\*\\*|$)/);\n  const education = educationMatch ? educationMatch[1].trim() : \"\";\n\n  // Extract skills as an array\n  const skillsMatch = text.match(/\\*\\*Skills:\\*\\*([\\s\\S]+?)(?=\\*\\*Work Experience:|\\*\\*|$)/);\n  const skillsRaw = skillsMatch ? skillsMatch[1].trim() : \"\";\n  const skills = skillsRaw ? skillsRaw.split(',').map(s => s.trim()) : [];\n\n  // Extract work experience\n  const workMatch = text.match(/\\*\\*Work Experience:\\*\\*([\\s\\S]+?)(?=\\*\\*|$)/);\n  const workExperience = workMatch ? workMatch[1].trim() : \"\";\n\n  return {\n    json: {\n      score,\n      description,\n      education,\n      skills,\n      workExperience\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1216,
+        -528
+      ],
+      "id": "fe84f89d-7506-4b00-b591-86fa1da8faed",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "2821ff88-4946-4aa2-930d-8cf1f1145ff2",
+              "leftValue": "={{ $json.score }}",
+              "rightValue": 7,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1440,
+        -528
+      ],
+      "id": "79f6eb80-14d8-4fe3-9e86-c721eb30354c",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "app2bjPlyYkPGLWkm",
+          "mode": "list",
+          "cachedResultName": "CV",
+          "cachedResultUrl": "https://airtable.com/app2bjPlyYkPGLWkm"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbl6R4dU1WJR1TuCQ",
+          "mode": "list",
+          "cachedResultName": "Resume Info",
+          "cachedResultUrl": "https://airtable.com/app2bjPlyYkPGLWkm/tbl6R4dU1WJR1TuCQ"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Candidate Name": "={{ $('HTTP Request').item.json.content[0].answers['3'].answer.first }} {{ $('HTTP Request').item.json.content[0].answers['3'].answer.last }}",
+            "Email Adress": "={{ $('HTTP Request').item.json.content[0].answers['4'].answer }}",
+            "Contact_Number": "={{ $('HTTP Request').item.json.content[0].answers['5'].answer.full }}",
+            "job_history": "={{ $json.workExperience }}",
+            "score": "={{ $json.score }}",
+            "educational_qualification": "={{ $json.education }}",
+            "skill_set": "={{ $json.skills[0] }}, {{ $json.skills[1] }}\n{{ $json.skills[2] }}, {{ $json.skills[3] }}, {{ $json.skills[4] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Candidate Name",
+              "displayName": "Candidate Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Contact_Number",
+              "displayName": "Contact_Number",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Email Adress",
+              "displayName": "Email Adress",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "job_history",
+              "displayName": "job_history",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "score",
+              "displayName": "score",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "skill_set",
+              "displayName": "skill_set",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "educational_qualification",
+              "displayName": "educational_qualification",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1664,
+        -624
+      ],
+      "id": "d1fe25d8-a09f-48a0-b126-d81af0d5c401",
+      "name": "Create a record",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "yLqHO9dlopdLQfPZ",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('HTTP Request').item.json.content[0].answers['4'].answer }}",
+        "subject": "Your Resume Submission - Application Status",
+        "message": " Dear [Candidate Name],  Thank you for taking the time to apply and submit your resume for our consideration.  After careful review of your qualifications and experience, we regret to inform you that we will not be moving forward with your application at this time.  Please do not be discouraged, as we encourage you to apply again for future opportunities that match your skills and experience.  We wish you all the best in your job search and future career endeavors.  Thank you again for your interest in our organization.  Best regards, [Your Name] [Your Company] [Contact Information]",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1664,
+        -432
+      ],
+      "id": "ba976361-37f5-4356-b32f-c5c910f6ffbb",
+      "name": "Send a message",
+      "webhookId": "245f033b-c19e-42bb-96e9-559edd806514",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "0EHMR6q7kdEECojP",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Code in JavaScript').item.json.email }}",
+        "subject": "Congratulations! Your Profile Has Been Shortlisted",
+        "message": "Dear [Candidate Name],  We are pleased to inform you that your profile has been shortlisted for further consideration in our recruitment process.  Your skills and qualifications have impressed us, and we would like to move forward with the next steps.  Our team will contact you soon with details regarding the upcoming stages of the selection process.  Thank you for your interest in joining our organization, and we look forward to connecting with you.  Best regards, [Your Name] [Your Company] [Contact Information]",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1888,
+        -624
+      ],
+      "id": "2d7ea44b-097f-4156-a59d-37cb3e4871d7",
+      "name": "Send a message1",
+      "webhookId": "10edf2a6-711d-4bce-8c9c-6d2fdfdf8138",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "0EHMR6q7kdEECojP",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "Apply For Job Through website  \n* i added Firm In Website\n* Connecting This Form To n8n\n* clean data Using code node\n",
+        "height": 368,
+        "width": 480
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -112,
+        -672
+      ],
+      "typeVersion": 1,
+      "id": "58e913d5-3600-4c32-bec6-0657198ac487",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "Analyzing  The CV generate Score Profile description With Ai\n \n* If Score Come 7 or Above  send message You CV Got Shortlisted \n\n* if CV Got Below 7 Send message Your CV not Shortlisted\n",
+        "height": 544,
+        "width": 624
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        776,
+        -704
+      ],
+      "typeVersion": 1,
+      "id": "0a9dd3b4-373a-4914-88ca-4e162fa3f138",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "aniketmjadhav45@gmail.com",
+          "mode": "list",
+          "cachedResultName": "aniketmjadhav45@gmail.com"
+        },
+        "additionalFields": {
+          "conferenceDataUi": {
+            "conferenceDataValues": {
+              "conferenceSolution": "hangoutsMeet"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        2112,
+        -624
+      ],
+      "id": "0a710bb0-a563-4395-924c-dc6f1246708f",
+      "name": "Create an event",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "bAAYJ3qnZicizKS2",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Create a record').item.json.fields['Email Adress'] }}",
+        "subject": ": Interview Confirmation",
+        "emailType": "text",
+        "message": "=Date: [{{ $json.start.dateTime }}] Time: [{{ $json.start.dateTime }}] Location/Platform: [{{ $json.conferenceData.entryPoints[0].uri }}]  Please be prepared to discuss your qualifications and experience related to the position. If you have any questions or need to reschedule, feel free to contact us.  We look forward to speaking with you.  Best regards, [Your Name] [Your Position] [Your Company] [Contact Information] ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2336,
+        -624
+      ],
+      "id": "5b5fd1dd-f798-442e-a1b4-bb2619b2b829",
+      "name": "Send a message2",
+      "webhookId": "05b46b7c-62bd-4696-8e85-6a8972813ece",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "0EHMR6q7kdEECojP",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "Email Node Candidate Selection Mail\n* Book The Interview Available Slot In Google Calendar\n* With The Google Meet Link\n* Conformation Mail\n* Reminder\n*Reminder Mail",
+        "height": 512,
+        "width": 1088
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1840,
+        -832
+      ],
+      "typeVersion": 1,
+      "id": "cf90fa3c-9ca1-4fb6-8a20-b2da77bf7045",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2560,
+        -624
+      ],
+      "id": "152ac85b-5332-44d0-8772-eb65e5669cff",
+      "name": "Wait",
+      "webhookId": "e5480feb-dd09-45bb-a118-200202971695"
+    },
+    {
+      "parameters": {
+        "sendTo": "demoaniket4@gmail.com",
+        "subject": "Reminder Mail",
+        "message": "=Dear [{{ $('Create a record').item.json.fields['Candidate Name'] }}],  This is a friendly reminder of your upcoming interview for the [Job Title] position at [Your Company].  Interview Details: Date: [{{ $('Create an event').item.json.start.dateTime }}] Time: [{{ $('Create an event').item.json.start.dateTime }}] Location/Platform: Google Meet [{{ $('Create an event').item.json.conferenceData.entryPoints[0].uri }}]({{ $('Create an event').item.json.conferenceData.entryPoints[0].uri }})  Please ensure you are prepared and available at the scheduled time.  If you need to reschedule or have any questions, please contact us as soon as possible.  Best regards, [Your Name] [Your Position] [Your Company] [Contact Information] ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2784,
+        -624
+      ],
+      "id": "aa294ce9-f766-4343-b943-c5d94120baf4",
+      "name": "Send a message3",
+      "webhookId": "01ecf8ab-1a3a-4989-8b60-6856695cac5d",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "0EHMR6q7kdEECojP",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "kartik2.app.n8n.cloud",
+            "content-length": "3906",
+            "accept": "*/*",
+            "accept-encoding": "gzip, br",
+            "cdn-loop": "cloudflare; loops=1; subreqs=1",
+            "cf-connecting-ip": "34.30.129.164",
+            "cf-ew-via": "15",
+            "cf-ipcountry": "US",
+            "cf-ray": "99b3b403834811a7-ORD",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+            "cf-worker": "n8n.cloud",
+            "content-type": "multipart/form-data; boundary=------------------------BtjFC2DLj47M1Vpe1YQ4BS",
+            "newrelic": "eyJ2IjpbMCwxXSwiZCI6eyJ0eSI6IkFwcCIsImFjIjoiNjkxNjIwIiwiYXAiOiIxMzE0NDY2Njk5IiwiaWQiOiIzMDc5OThlNjBiMDE1OTllIiwidHIiOiI1ZDY5YjlhYTU2MWQxYWNlIiwidHgiOiI1ZDY5YjlhYTU2MWQxYWNlIiwicHIiOjEuMzY2NjQsInNhIjp0cnVlLCJ0aSI6MTc2MjU5MDU3MTc3NX19",
+            "traceparent": "00-00000000000000005d69b9aa561d1ace-307998e60b01599e-01",
+            "tracestate": "691620@nr=0-0-691620-1314466699-307998e60b01599e-5d69b9aa561d1ace-1-1.366635-1762590571775",
+            "x-forwarded-for": "34.30.129.164, 172.69.58.56",
+            "x-forwarded-host": "kartik2.app.n8n.cloud",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "traefik-prod-users-gwc-53-77dd8844d7-pkkhp",
+            "x-is-trusted": "yes",
+            "x-real-ip": "34.30.129.164"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "action": "",
+            "webhookURL": "https://kartik2.app.n8n.cloud/webhook/Job",
+            "username": "aniketmjadhav45",
+            "formID": "253111726772051",
+            "type": "WEB",
+            "customParams": "",
+            "product": "",
+            "formTitle": "Form",
+            "customTitle": "",
+            "submissionID": "6383997684329517381",
+            "event": "",
+            "documentID": "",
+            "teamID": "",
+            "subject": "",
+            "isSilent": "",
+            "customBody": "",
+            "rawRequest": "{\"slug\":\"submit\\/253111726772051\",\"jsExecutionTracker\":\"build-date-1762590146206=>init-started:1762590548807=>validator-called:1762590548824=>validator-mounted-false:1762590548826=>init-complete:1762590548835=>onsubmit-fired:1762590567894=>observerSubmitHandler_received-submit-event:1762590567896=>submit-validation-passed:1762590567934=>observerSubmitHandler_validation-passed-submitting-form:1762590567951\",\"submitSource\":\"form\",\"submitDate\":\"1762590567951\",\"buildDate\":\"1762590146206\",\"uploadServerUrl\":\"https:\\/\\/upload.jotform.com\\/upload\",\"eventObserver\":\"1\",\"q3_name\":{\"first\":\"Aniket\",\"last\":\"Jadhav\"},\"q4_email\":\"aniket@gmail.com\",\"q5_phoneNumber\":{\"full\":\"(876) 256-5658\"},\"q6_linkedinProfile\":\"\",\"q9_skills\":\"n8n , Zapier\",\"q11_workExperience\":\"2\",\"event_id\":\"1762590548808_253111726772051_A7ws1Sq\",\"timeToSubmit\":\"19\",\"temp_upload\":{\"q7_fileUpload\":[\"ANIKET.CV.pdf#jotformfs-e4f4ece4d0a90#019a6295-a4cb-7544-8d15-955fbe3bdaa7\"]},\"file_server\":\"jotformfs-e4f4ece4d0a90#019a6295-a4cb-7544-8d15-955fbe3bdaa7\",\"validatedNewRequiredFieldIDs\":\"{\\\"new\\\":1}\",\"path\":\"\\/submit\\/253111726772051\",\"fileUpload\":[\"https:\\/\\/www.jotform.com\\/uploads\\/aniketmjadhav45\\/253111726772051\\/6383997684329517381\\/ANIKET.CV.pdf\"]}",
+            "fromTable": "",
+            "appID": "",
+            "pretty": "Name:Aniket Jadhav, Email:aniket@gmail.com, Phone Number:(876) 256-5658, Skills:n8n , Zapier, Work Experience:2, File upload for resume (PDF, DOCX):ANIKET.CV.pdf",
+            "unread": "",
+            "parent": "",
+            "ip": "106.215.178.234"
+          },
+          "webhookUrl": "https://kartik2.app.n8n.cloud/webhook/Job",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Create a record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a record": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message1": {
+      "main": [
+        [
+          {
+            "node": "Create an event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create an event": {
+      "main": [
+        [
+          {
+            "node": "Send a message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message2": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Send a message3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message3": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "28109e8a-1daf-4d76-b1fa-44ebdbef02f7",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "21ffa506762b098762719e613b24dfaf1f9d4d479a3d916b888f664be5116e34"
+  },
+  "id": "EZgpv8OY7an3Ga1N",
+  "tags": []
+}
